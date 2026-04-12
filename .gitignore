@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+.env
+backend/data/ephemeris/*.bsp
+backend/data/ephemeris/*.tpc
+backend/data/ephemeris/*.tf
+.DS_Store

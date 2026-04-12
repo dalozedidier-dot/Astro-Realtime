@@ -1,0 +1,11 @@
+services:
+  api:
+    build:
+      context: ./backend
+    container_name: astro-realtime-engine-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env.example
+    volumes:
+      - ./backend/data:/app/data
