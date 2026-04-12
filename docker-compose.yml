@@ -1,11 +1,13 @@
+version: "3.9"
+
 services:
-  api:
-    build:
-      context: ./backend
-    container_name: astro-realtime-engine-api
+  astro-realtime-api:
+    build: .
     ports:
       - "8000:8000"
-    env_file:
-      - ./backend/.env.example
-    volumes:
-      - ./backend/data:/app/data
+    environment:
+      APP_ENV: dev
+      ASTRO_ENGINE: builtin
+      DEFAULT_ZODIAC: tropical
+      DEFAULT_HOUSE_SYSTEM: whole_sign
+      CACHE_TTL_SECONDS: 15

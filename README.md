@@ -1,220 +1,70 @@
-# Astro Realtime Engine
+# Astro-Realtime Backend Suite
 
-Starter repo fully functional for a real-time astronomy and astrology API.
+Backend FastAPI pour calculs astronomiques et astrologiques en temps réel.
 
-This project provides:
+## Contenu
 
-- a FastAPI backend;
-- an initial astronomy engine based on Skyfield and JPL ephemerides;
-- an initial astrology engine for signs, whole-sign houses, aspects, and basic transits;
-- Docker support;
-- GitHub Actions CI;
-- tests and documentation to start cleanly on GitHub.
+- API FastAPI avec endpoint `/health` et `/realtime/positions`
+- moteur de calcul abstrait avec plusieurs providers
+- provider `builtin` autonome et déterministe
+- provider `skyfield` optionnel pour brancher des éphémérides plus précises
+- calcul des signes, degrés, maisons simplifiées, angles, aspects majeurs
+- cache mémoire léger
+- tests Pytest
+- Dockerfile et `docker-compose.yml`
 
-## Technical scope of this starter
-
-This is a serious starter, not a finished astrology platform.
-
-What is already included:
-
-- astronomical position calculation for the main bodies;
-- zodiac sign derivation from ecliptic longitude;
-- whole-sign house attribution;
-- major aspect detection;
-- natal chart endpoint;
-- transit-to-natal aspect endpoint.
-
-What remains intentionally simple in this version:
-
-- the ascendant is still an initial approximation;
-- no Placidus, Koch, Regiomontanus or other advanced house systems yet;
-- no progressed charts or solar returns yet;
-- no interpretation text engine yet;
-- no frontend yet.
-
-## Project structure
-
-```text
-astro-realtime-engine/
-├── .github/workflows/
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   ├── astronomy/
-│   │   ├── astrology/
-│   │   ├── models/
-│   │   ├── services/
-│   │   ├── tests/
-│   │   └── main.py
-│   ├── data/ephemeris/
-│   ├── scripts/
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── .env.example
-├── docker-compose.yml
-└── README.md
-```
-
-## Requirements
-
-- Python 3.11
-- Docker optional
-
-## Quick start without Docker
-
-From the repository root:
+## Démarrage local
 
 ```bash
-cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
-python scripts/download_ephemeris.py
-python scripts/run_dev.py
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The API will then be available at:
-
-- `http://127.0.0.1:8000`
-- `http://127.0.0.1:8000/docs`
-
-## Quick start with Docker
-
-From the repository root:
+## Variables d'environnement
 
 ```bash
-docker compose up --build
+export APP_NAME="Astro Realtime API"
+export APP_ENV="dev"
+export ASTRO_ENGINE="builtin"
+export DEFAULT_ZODIAC="tropical"
+export DEFAULT_HOUSE_SYSTEM="whole_sign"
+export CACHE_TTL_SECONDS="15"
 ```
 
-Then open:
-
-- `http://127.0.0.1:8000/docs`
-
-At first launch, if the ephemeris file is missing and downloads are allowed, Skyfield will fetch `de421.bsp` automatically.
-
-## API endpoints
-
-### Health
-
-`GET /api/v1/health`
-
-Returns:
-
-```json
-{
-  "status": "ok"
-}
-```
-
-### Positions
-
-`POST /api/v1/positions`
-
-Example payload:
-
-```json
-{
-  "datetime": "2026-04-12T14:30:00+00:00",
-  "bodies": ["sun", "moon", "mercury", "venus", "mars"]
-}
-```
-
-### Natal chart
-
-`POST /api/v1/chart/natal`
-
-Example payload:
-
-```json
-{
-  "datetime": "1985-09-11T08:30:00+02:00",
-  "latitude": 50.8503,
-  "longitude": 4.3517,
-  "bodies": ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"]
-}
-```
-
-### Transits
-
-`POST /api/v1/transits`
-
-Example payload:
-
-```json
-{
-  "natal_datetime": "1985-09-11T08:30:00+02:00",
-  "transit_datetime": "2026-04-12T14:30:00+00:00",
-  "latitude": 50.8503,
-  "longitude": 4.3517,
-  "bodies": ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"]
-}
-```
-
-## Functional notes
-
-### Astronomy engine
-
-The astronomy engine uses Skyfield with JPL ephemerides.
-
-Current outputs include:
-
-- ecliptic longitude;
-- ecliptic latitude;
-- distance in AU;
-- right ascension;
-- declination.
-
-### Astrology engine
-
-The astrology layer currently includes:
-
-- zodiac signs from longitude;
-- whole-sign houses;
-- major aspects: conjunction, sextile, square, trine, opposition;
-- transit-to-natal aspect detection.
-
-### Important methodological note
-
-This starter cleanly separates:
-
-- astronomy, which computes positions;
-- astrology, which interprets those positions through a symbolic framework.
-
-That separation is essential if you want a robust, auditable system.
-
-## Run tests
+## Exemple de requête
 
 ```bash
-cd backend
-pytest -q
+curl -X POST http://localhost:8000/realtime/positions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "datetime": "2026-04-12T18:20:00Z",
+    "lat": 50.8503,
+    "lon": 4.3517,
+    "elevation_m": 25,
+    "zodiac": "tropical",
+    "house_system": "whole_sign",
+    "bodies": ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"]
+  }'
 ```
 
-## Deploy to GitHub
+## Précision
 
-From the repository root:
+Le provider `builtin` est autonome et pratique pour le développement, les tests et le câblage API.
+Il n'est pas destiné à être la référence astronomique ultime.
+Pour une précision supérieure, branchez `provider_skyfield.py` ou remplacez ce provider par Swiss Ephemeris dans la même interface.
 
-```bash
-git init
-git add .
-git commit -m "initial commit"
-git branch -M main
-git remote add origin https://github.com/your-user/astro-realtime-engine.git
-git push -u origin main
+## Architecture
+
+```text
+app/
+  main.py
+  config.py
+  api/routes/
+  astro/
+  core/
+  schemas/
+  services/
+  tests/
 ```
-
-## Recommended next steps
-
-A strong next roadmap would be:
-
-1. replace the ascendant approximation with a more rigorous implementation;
-2. add a real house system module;
-3. add geocoding and timezone helpers;
-4. add chart wheel rendering;
-5. add authentication and saved charts;
-6. add a frontend dashboard;
-7. add a proper interpretation engine.
-
-## License
-
-Add the license that matches your business and distribution model.
