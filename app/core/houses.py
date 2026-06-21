@@ -1,5 +1,3 @@
-from typing import List
-
 from app.core.zodiac import normalize_degrees
 
 
@@ -12,12 +10,12 @@ def approximate_mc_deg(local_sidereal_time_deg: float) -> float:
     return normalize_degrees(local_sidereal_time_deg)
 
 
-def build_whole_sign_houses(ascendant_deg: float) -> List[float]:
+def build_whole_sign_houses(ascendant_deg: float) -> list[float]:
     start = int(ascendant_deg // 30) * 30.0
     return [normalize_degrees(start + i * 30.0) for i in range(12)]
 
 
-def build_equal_houses(ascendant_deg: float) -> List[float]:
+def build_equal_houses(ascendant_deg: float) -> list[float]:
     return [normalize_degrees(ascendant_deg + i * 30.0) for i in range(12)]
 
 

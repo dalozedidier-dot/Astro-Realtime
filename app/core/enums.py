@@ -17,3 +17,9 @@ class AspectType(str, Enum):
     square = 'square'
     trine = 'trine'
     opposition = 'opposition'
+
+
+class ChartMode(str, Enum):
+    realtime = 'realtime'
+    natal = 'natal'
+    transit = 'transit'

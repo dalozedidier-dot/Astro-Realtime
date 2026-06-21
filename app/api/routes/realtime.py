@@ -4,7 +4,7 @@ from app.schemas.request import RealtimePositionsRequest
 from app.schemas.response import RealtimePositionsResponse
 from app.services.realtime_service import RealtimeService
 
-router = APIRouter(tags=['realtime'])
+router = APIRouter(tags=['legacy'])
 service = RealtimeService()
 
 

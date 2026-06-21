@@ -15,4 +15,6 @@ def health() -> dict:
         'version': settings.app_version,
         'time_utc': datetime.now(timezone.utc).isoformat(),
         'env': settings.app_env,
+        'frontend': '/static/index.html',
+        'api': '/api/v1/metadata',
     }

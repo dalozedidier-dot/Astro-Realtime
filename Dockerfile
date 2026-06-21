@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY app /app/app
 COPY README.md /app/README.md
+COPY pyproject.toml /app/pyproject.toml
 
 EXPOSE 8000
 

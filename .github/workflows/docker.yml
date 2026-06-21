@@ -1,24 +1,37 @@
-name: Docker Build
+name: Docker
 
 on:
+  workflow_dispatch:
+  pull_request:
   push:
     branches: ["main"]
-  pull_request:
-  workflow_dispatch:
 
 jobs:
-  docker:
+  docker-build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Build image
+        run: docker build -t astro-realtime:ci .
 
-      - name: Build backend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./backend
-          push: false
-          tags: astro-realtime-engine-backend:latest
+      - name: Run container smoke
+        run: |
+          docker run -d --rm --name astro-realtime-ci -p 8000:8000 astro-realtime:ci
+          python - <<'PY'
+          import json
+          import time
+          import urllib.request
+          for _ in range(45):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:8000/api/v1/metadata', timeout=2) as response:
+                      data = json.loads(response.read().decode())
+                  assert data['app_name']
+                  break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit('Docker smoke failed')
+          PY
+          docker stop astro-realtime-ci

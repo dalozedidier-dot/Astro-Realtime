@@ -1,70 +1,171 @@
-# Astro-Realtime Backend Suite
+# Astro Realtime
 
-Backend FastAPI pour calculs astronomiques et astrologiques en temps réel.
+Astro Realtime est maintenant une application complète : une API FastAPI, une page web servie directement par le backend, une roue astrologique SVG, des calculs temps réel, un thème natal, des transits, des aspects, une synthèse symbolique et des tests.
 
-## Contenu
+## Ce que contient cette mise à jour
 
-- API FastAPI avec endpoint `/health` et `/realtime/positions`
-- moteur de calcul abstrait avec plusieurs providers
-- provider `builtin` autonome et déterministe
-- provider `skyfield` optionnel pour brancher des éphémérides plus précises
-- calcul des signes, degrés, maisons simplifiées, angles, aspects majeurs
-- cache mémoire léger
-- tests Pytest
-- Dockerfile et `docker-compose.yml`
+- Page web complète dans `app/static/`.
+- API moderne sous `/api/v1`.
+- Ancien endpoint `/realtime/positions` conservé pour compatibilité.
+- Mode temps réel avec date courante et auto refresh côté frontend.
+- Mode thème natal.
+- Mode transits natal/actuel.
+- Roue astrologique SVG sans dépendance lourde.
+- Table des positions.
+- Liste des aspects majeurs.
+- Interprétation sobre des placements et aspects.
+- Métadonnées API.
+- Notes de méthode et limites affichées dans l’interface.
+- CLI `astro-realtime`.
+- Tests API, frontend statique, validation, thème natal et transits.
+- Docker et GitHub Actions unifiés sur l’application racine.
+
+## Structure
+
+```text
+app/
+  main.py
+  api/routes/
+    astro.py
+    health.py
+    realtime.py
+  astro/
+    engine.py
+    provider_builtin.py
+    provider_skyfield.py
+  core/
+    aspects.py
+    houses.py
+    interpretation.py
+    time.py
+    zodiac.py
+  schemas/
+    request.py
+    response.py
+  services/
+    realtime_service.py
+    chart_service.py
+  static/
+    index.html
+    styles.css
+    app.js
+  tests/
+
+docs/
+  PAGE_SPEC.md
+
+pyproject.toml
+requirements.txt
+Dockerfile
+docker-compose.yml
+```
 
 ## Démarrage local
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## Variables d'environnement
+Ouvrir ensuite :
 
-```bash
-export APP_NAME="Astro Realtime API"
-export APP_ENV="dev"
-export ASTRO_ENGINE="builtin"
-export DEFAULT_ZODIAC="tropical"
-export DEFAULT_HOUSE_SYSTEM="whole_sign"
-export CACHE_TTL_SECONDS="15"
+```text
+http://localhost:8000/
 ```
 
-## Exemple de requête
+Documentation API :
+
+```text
+http://localhost:8000/docs
+```
+
+## Docker
 
 ```bash
-curl -X POST http://localhost:8000/realtime/positions \
+docker compose up --build
+```
+
+Puis ouvrir :
+
+```text
+http://localhost:8000/
+```
+
+## Endpoints principaux
+
+```text
+GET  /health
+GET  /api/v1/metadata
+GET  /api/v1/now
+POST /api/v1/realtime/positions
+POST /api/v1/chart/natal
+POST /api/v1/transits
+POST /realtime/positions
+```
+
+## Exemple API
+
+```bash
+curl -X POST http://localhost:8000/api/v1/realtime/positions \
   -H "Content-Type: application/json" \
   -d '{
-    "datetime": "2026-04-12T18:20:00Z",
+    "datetime": "2026-06-21T18:00:00+02:00",
     "lat": 50.8503,
     "lon": 4.3517,
-    "elevation_m": 25,
     "zodiac": "tropical",
     "house_system": "whole_sign",
     "bodies": ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"]
   }'
 ```
 
-## Précision
+## CLI
 
-Le provider `builtin` est autonome et pratique pour le développement, les tests et le câblage API.
-Il n'est pas destiné à être la référence astronomique ultime.
-Pour une précision supérieure, branchez `provider_skyfield.py` ou remplacez ce provider par Swiss Ephemeris dans la même interface.
-
-## Architecture
-
-```text
-app/
-  main.py
-  config.py
-  api/routes/
-  astro/
-  core/
-  schemas/
-  services/
-  tests/
+```bash
+python -m app.cli --lat 50.8503 --lon 4.3517 --datetime 2026-06-21T18:00:00+02:00
 ```
+
+Ou après installation éditable :
+
+```bash
+pip install -e .
+astro-realtime --lat 50.8503 --lon 4.3517
+```
+
+## Tests
+
+```bash
+pytest
+```
+
+## Variables d’environnement
+
+```bash
+APP_NAME="Astro Realtime"
+APP_ENV="dev"
+APP_VERSION="local"
+ASTRO_ENGINE="builtin"
+DEFAULT_ZODIAC="tropical"
+DEFAULT_HOUSE_SYSTEM="whole_sign"
+CACHE_TTL_SECONDS="15"
+ALLOW_DOCS="true"
+REALTIME_REFRESH_SECONDS="60"
+```
+
+## Précision et limites
+
+Le provider `builtin` est autonome, déterministe et utile pour développer l’interface sans dépendre d’un téléchargement d’éphémérides. Il ne doit pas être présenté comme une référence astronomique définitive.
+
+Pour pousser la précision, utiliser `ASTRO_ENGINE=skyfield` avec des éphémérides disponibles localement. Les maisons et l’ascendant restent approximatifs dans cette étape. L’interface affiche cette limite pour éviter de mélanger précision technique et lecture symbolique.
+
+## Prochaines améliorations recommandées
+
+- Brancher Skyfield par défaut avec éphémérides locales contrôlées.
+- Ajouter Swiss Ephemeris si l’objectif est une précision astrologique plus stricte.
+- Ajouter Placidus, Koch et maisons égales raffinées.
+- Ajouter recherche de ville via API géocodage.
+- Ajouter export PNG/PDF de la roue.
+- Ajouter synastrie et progressions.
+- Ajouter mode multilingue FR/EN.

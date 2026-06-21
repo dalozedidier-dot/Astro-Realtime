@@ -1,7 +1,5 @@
-version: "3.9"
-
 services:
-  astro-realtime-api:
+  astro-realtime:
     build: .
     ports:
       - "8000:8000"
@@ -11,3 +9,4 @@ services:
       DEFAULT_ZODIAC: tropical
       DEFAULT_HOUSE_SYSTEM: whole_sign
       CACHE_TTL_SECONDS: 15
+      ALLOW_DOCS: "true"

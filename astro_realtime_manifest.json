@@ -1,0 +1,38 @@
+{
+  "project": "Astro Realtime",
+  "upgrade_scope": "full_page_frontend_api_unification",
+  "canonical_backend": "app.main:app",
+  "removed_duplicate_backend": true,
+  "frontend": {
+    "type": "static_fastapi_served",
+    "entrypoint": "app/static/index.html",
+    "features": [
+      "realtime_mode",
+      "natal_chart_mode",
+      "transit_mode",
+      "svg_astrology_wheel",
+      "positions_table",
+      "aspects_cards",
+      "symbolic_interpretation",
+      "method_notes",
+      "raw_json_debug"
+    ]
+  },
+  "api": {
+    "base": "/api/v1",
+    "endpoints": [
+      "/health",
+      "/api/v1/metadata",
+      "/api/v1/now",
+      "/api/v1/realtime/positions",
+      "/api/v1/chart/natal",
+      "/api/v1/transits",
+      "/realtime/positions"
+    ]
+  },
+  "quality": {
+    "pytest": "10 passed",
+    "compileall": "passed",
+    "cli_smoke": "passed"
+  }
+}
