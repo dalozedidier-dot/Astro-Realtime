@@ -169,3 +169,22 @@ Pour pousser la précision, utiliser `ASTRO_ENGINE=skyfield` avec des éphémér
 - Ajouter export PNG/PDF de la roue.
 - Ajouter synastrie et progressions.
 - Ajouter mode multilingue FR/EN.
+
+## GitHub Pages
+
+A static public page is available in `docs/` and can be deployed with GitHub Pages.
+
+Expected URL once Pages is enabled:
+
+```text
+https://dalozedidier-dot.github.io/Astro-Realtime/
+```
+
+The GitHub Pages version runs in standalone browser mode because GitHub Pages cannot execute FastAPI. If the FastAPI backend is deployed on another host, paste that backend URL into the optional API field on the page.
+
+To deploy from GitHub:
+
+1. Go to **Settings > Pages**.
+2. Select **GitHub Actions** as the source.
+3. Run **Actions > Deploy GitHub Pages > Run workflow**.
+4. Open the URL displayed in the workflow summary.

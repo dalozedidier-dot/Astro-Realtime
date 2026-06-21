@@ -1,0 +1,15 @@
+{
+  "project": "Astro Realtime",
+  "target": "GitHub Pages",
+  "expected_url": "https://dalozedidier-dot.github.io/Astro-Realtime/",
+  "static_root": "docs/",
+  "workflow": ".github/workflows/pages.yml",
+  "mode": "standalone browser fallback with optional FastAPI API base URL",
+  "files": [
+    "docs/index.html",
+    "docs/styles.css",
+    "docs/app.js",
+    "docs/.nojekyll",
+    ".github/workflows/pages.yml"
+  ]
+}
