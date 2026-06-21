@@ -3,163 +3,188 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Astro Realtime</title>
+    <title>Astro Realtime — le ciel, maintenant</title>
     <meta
       name="description"
-      content="Astro Realtime calcule les positions astrologiques en temps réel, affiche une roue astrologique SVG, les aspects et une lecture synthétique."
+      content="Astro Realtime calcule les positions astrologiques en temps réel et dessine une roue céleste interactive : signes, maisons, aspects et lecture symbolique sobre."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <canvas id="starfield" aria-hidden="true"></canvas>
+
     <header class="hero">
-      <div class="hero__content">
-        <p class="eyebrow">Démonstrateur astro temps réel</p>
-        <h1>Astro Realtime</h1>
+      <div class="hero__heading">
+        <p class="eyebrow">Éphéméride vivante · démonstrateur</p>
+        <h1>Astro&nbsp;Realtime</h1>
         <p class="hero__lead">
-          Positions, thème natal, transits, roue astrologique SVG, aspects et lecture symbolique sobre.
+          Choisissez un instant et un lieu. La roue céleste se dessine : signes, maisons,
+          aspects et une lecture symbolique tenue à distance du calcul.
         </p>
         <div class="hero__actions">
-          <button class="button button--primary" id="run-button" type="button">Calculer</button>
-          <button class="button" id="now-button" type="button">Utiliser maintenant</button>
-          <button class="button" id="auto-button" type="button" data-active="false">Auto refresh</button>
+          <button class="btn btn--primary" id="run-button" type="button">Calculer le ciel</button>
+          <button class="btn" id="now-button" type="button">Maintenant</button>
+          <button class="btn btn--ghost" id="auto-button" type="button" data-active="false">Suivre le ciel</button>
         </div>
       </div>
-      <aside class="status-card" aria-live="polite">
-        <span class="status-dot" id="status-dot"></span>
-        <div>
-          <strong id="api-status">Initialisation</strong>
-          <small id="api-details">Mode GitHub Pages en cours de détection</small>
+
+      <aside class="moment" aria-live="polite">
+        <span class="moment__dot" id="status-dot" data-state="standalone"></span>
+        <div class="moment__body">
+          <strong id="api-status">Mode autonome</strong>
+          <small id="api-details">Détection du contexte…</small>
         </div>
+        <span class="moment__badge" id="runtime-mode">GitHub Pages</span>
       </aside>
     </header>
 
     <main class="layout">
-      <section class="panel controls" aria-label="Paramètres de calcul">
-        <div class="tabs" role="tablist" aria-label="Mode de calcul">
-          <button class="tab is-active" type="button" data-mode="realtime">Temps réel</button>
-          <button class="tab" type="button" data-mode="natal">Thème natal</button>
-          <button class="tab" type="button" data-mode="transit">Transits</button>
+      <!-- Rail de paramètres -->
+      <section class="rail" aria-label="Paramètres de calcul">
+        <div class="mode-tabs" role="tablist" aria-label="Mode de calcul">
+          <button class="mode-tab is-active" type="button" role="tab" aria-selected="true" data-mode="realtime">Temps réel</button>
+          <button class="mode-tab" type="button" role="tab" aria-selected="false" data-mode="natal">Thème natal</button>
+          <button class="mode-tab" type="button" role="tab" aria-selected="false" data-mode="transit">Transits</button>
         </div>
 
         <form id="astro-form" class="form">
-          <div class="notice">
-            <strong>Page GitHub Pages.</strong> Elle fonctionne en autonome avec un moteur client-side approximatif.
-            Si une API FastAPI est déployée ailleurs, indiquez son URL ci-dessous pour utiliser les endpoints réels.
-          </div>
-
-          <div class="api-url-row">
-            <label>
-              URL API optionnelle
+          <details class="api-block">
+            <summary>Connexion API <span class="api-hint">optionnelle</span></summary>
+            <p class="api-note">
+              Sans API, la page calcule en autonome dans le navigateur (moteur approximatif).
+              Indiquez l’URL d’un backend FastAPI pour des positions réelles.
+            </p>
+            <div class="api-row">
               <input id="api-base" name="api-base" type="url" placeholder="https://votre-api.example.com" />
-            </label>
-            <button class="button" id="save-api-button" type="button">Sauver</button>
-          </div>
+              <button class="btn btn--small" id="save-api-button" type="button">Lier</button>
+            </div>
+          </details>
 
-          <label>
-            Nom facultatif
+          <label class="field">
+            <span class="field__label">Nom <span class="field__opt">facultatif</span></span>
             <input id="name" name="name" type="text" maxlength="120" placeholder="Ex. Didier" />
           </label>
 
-          <label>
-            Ville rapide
+          <label class="field">
+            <span class="field__label">Lieu</span>
             <select id="city-select">
               <option value="50.8503,4.3517">Bruxelles</option>
               <option value="50.4108,4.4446">Charleroi</option>
               <option value="50.4669,4.8675">Namur</option>
               <option value="50.6326,5.5797">Liège</option>
-              <option value="50.7236,4.8699">Jodoigne</option>
+              <option value="50.7236,4.8699" selected>Jodoigne</option>
               <option value="48.8566,2.3522">Paris</option>
               <option value="51.5072,-0.1276">Londres</option>
             </select>
           </label>
 
-          <div class="grid-2">
-            <label>
-              Latitude
-              <input id="lat" name="lat" type="number" step="0.0001" value="50.8503" required />
+          <div class="field-grid">
+            <label class="field">
+              <span class="field__label">Latitude</span>
+              <input id="lat" name="lat" type="number" step="0.0001" value="50.7236" required />
             </label>
-            <label>
-              Longitude
-              <input id="lon" name="lon" type="number" step="0.0001" value="4.3517" required />
+            <label class="field">
+              <span class="field__label">Longitude</span>
+              <input id="lon" name="lon" type="number" step="0.0001" value="4.8699" required />
             </label>
           </div>
 
-          <label>
-            Date de calcul
+          <label class="field">
+            <span class="field__label">Instant</span>
             <input id="datetime" name="datetime" type="datetime-local" required />
           </label>
 
-          <label class="transit-only hidden">
-            Date natale
+          <label class="field transit-only hidden">
+            <span class="field__label">Instant natal</span>
             <input id="natal-datetime" name="natal-datetime" type="datetime-local" />
           </label>
 
-          <div class="grid-2">
-            <label>
-              Zodiaque
+          <div class="field-grid">
+            <label class="field">
+              <span class="field__label">Zodiaque</span>
               <select id="zodiac" name="zodiac">
                 <option value="tropical">Tropical</option>
                 <option value="sidereal">Sidéral</option>
               </select>
             </label>
-            <label>
-              Maisons
+            <label class="field">
+              <span class="field__label">Maisons</span>
               <select id="house-system" name="house-system">
-                <option value="whole_sign">Whole sign</option>
-                <option value="equal">Equal</option>
+                <option value="whole_sign">Signe entier</option>
+                <option value="equal">Égales</option>
               </select>
             </label>
           </div>
 
-          <fieldset>
+          <fieldset class="bodies">
             <legend>Corps célestes</legend>
             <div id="body-list" class="body-list"></div>
           </fieldset>
         </form>
       </section>
 
+      <!-- Espace de lecture -->
       <section class="workspace">
-        <section class="panel summary-grid" aria-label="Résumé">
-          <article>
-            <small>Dernière mise à jour</small>
-            <strong id="last-update">Aucune</strong>
-          </article>
-          <article>
-            <small>Ascendant</small>
-            <strong id="asc-summary">Aucun calcul</strong>
-          </article>
-          <article>
-            <small>Dominante</small>
-            <strong id="dominant-summary">Aucune</strong>
-          </article>
-          <article>
-            <small>Aspects</small>
-            <strong id="aspect-summary">0</strong>
-          </article>
-        </section>
-
-        <section class="split">
-          <article class="panel wheel-panel">
-            <div class="section-title">
-              <h2>Roue astrologique</h2>
-              <p>Planètes, maisons et aspects principaux.</p>
-            </div>
+        <section class="wheel-stage">
+          <div class="wheel-wrap">
             <div id="wheel" class="wheel" role="img" aria-label="Roue astrologique"></div>
-          </article>
+            <div id="wheel-tooltip" class="wheel-tooltip" data-show="false"></div>
+          </div>
 
-          <article class="panel">
-            <div class="section-title">
-              <h2>Lecture synthétique</h2>
-              <p>Résumé symbolique généré à partir des placements et aspects.</p>
+          <aside class="readout" aria-label="Synthèse">
+            <div class="readout__row">
+              <span class="readout__key">Instant calculé</span>
+              <strong class="readout__val" id="last-update">—</strong>
             </div>
-            <div id="interpretation" class="interpretation empty">Aucun calcul pour l’instant.</div>
-          </article>
+            <div class="readout__row">
+              <span class="readout__key">Ascendant</span>
+              <strong class="readout__val" id="asc-summary">—</strong>
+            </div>
+            <div class="readout__row">
+              <span class="readout__key">Dominante</span>
+              <strong class="readout__val" id="dominant-summary">—</strong>
+            </div>
+            <div class="readout__row">
+              <span class="readout__key">Aspects majeurs</span>
+              <strong class="readout__val readout__val--big" id="aspect-summary">0</strong>
+            </div>
+
+            <div class="legend">
+              <span class="legend__item"><i class="legend__line legend__line--harmonic"></i>Harmonique</span>
+              <span class="legend__item"><i class="legend__line legend__line--tension"></i>Tension</span>
+              <span class="legend__item"><i class="legend__line legend__line--neutral"></i>Conjonction · opposition</span>
+            </div>
+          </aside>
         </section>
 
-        <section class="panel">
-          <div class="section-title">
+        <div class="cards">
+          <section class="card card--reading">
+            <div class="card__title">
+              <h2>Lecture synthétique</h2>
+              <p>Résumé symbolique dérivé des placements et des aspects.</p>
+            </div>
+            <div id="interpretation" class="interpretation is-empty">Aucun calcul pour l’instant.</div>
+          </section>
+
+          <section class="card card--aspects">
+            <div class="card__title">
+              <h2>Aspects</h2>
+              <p>Aspects majeurs détectés, par orbe croissant.</p>
+            </div>
+            <div id="aspects" class="aspect-list is-empty">Aucun aspect affiché.</div>
+          </section>
+        </div>
+
+        <section class="card">
+          <div class="card__title">
             <h2>Positions</h2>
-            <p>Longitude, signe, degré, maison et mouvement.</p>
+            <p>Signe, degré, maison, longitude et vitesse de chaque corps.</p>
           </div>
           <div class="table-wrap">
             <table>
@@ -167,10 +192,10 @@
                 <tr>
                   <th>Corps</th>
                   <th>Signe</th>
-                  <th>Degré</th>
-                  <th>Maison</th>
-                  <th>Longitude</th>
-                  <th>Vitesse</th>
+                  <th class="num">Degré</th>
+                  <th class="num">Maison</th>
+                  <th class="num">Longitude</th>
+                  <th class="num">Vitesse</th>
                 </tr>
               </thead>
               <tbody id="positions-body"></tbody>
@@ -178,18 +203,10 @@
           </div>
         </section>
 
-        <section class="panel">
-          <div class="section-title">
-            <h2>Aspects</h2>
-            <p>Aspects majeurs détectés avec orbe.</p>
-          </div>
-          <div id="aspects" class="aspect-list empty">Aucun aspect affiché.</div>
-        </section>
-
-        <section class="panel method-panel">
-          <details open>
+        <section class="card card--method">
+          <details>
             <summary>Méthode, limites et données brutes</summary>
-            <ul id="method-notes"></ul>
+            <ul id="method-notes" class="method-notes"></ul>
             <pre id="raw-json">Aucun résultat.</pre>
           </details>
         </section>
@@ -197,9 +214,8 @@
     </main>
 
     <footer class="footer">
-      <span>Astro Realtime</span>
-      <span class="mode-badge" id="runtime-mode">GitHub Pages</span>
-      <span>Frontend statique sans dépendance lourde</span>
+      <span class="footer__mark">✦ Astro Realtime</span>
+      <span class="footer__note">Roue céleste interactive · frontend statique sans dépendance lourde</span>
     </footer>
 
     <script src="app.js" type="module"></script>

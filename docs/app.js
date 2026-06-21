@@ -1,3 +1,9 @@
+/* ==========================================================================
+   Astro Realtime — frontend
+   Le moteur de calcul autonome (orbital, aspects, maisons, interprétation)
+   est conservé à l'identique. Seuls le rendu, la roue et l'ambiance changent.
+   ========================================================================== */
+
 const bodies = [
   ['sun', 'Soleil'],
   ['moon', 'Lune'],
@@ -23,6 +29,12 @@ const signLabels = {
   Aries: 'Bélier', Taurus: 'Taureau', Gemini: 'Gémeaux', Cancer: 'Cancer', Leo: 'Lion', Virgo: 'Vierge',
   Libra: 'Balance', Scorpio: 'Scorpion', Sagittarius: 'Sagittaire', Capricorn: 'Capricorne', Aquarius: 'Verseau', Pisces: 'Poissons'
 };
+const elementBySign = {
+  Aries: 'feu', Leo: 'feu', Sagittarius: 'feu',
+  Taurus: 'terre', Virgo: 'terre', Capricorn: 'terre',
+  Gemini: 'air', Libra: 'air', Aquarius: 'air',
+  Cancer: 'eau', Scorpio: 'eau', Pisces: 'eau',
+};
 
 const state = {
   mode: 'realtime',
@@ -35,7 +47,7 @@ const state = {
 const els = {
   bodyList: document.querySelector('#body-list'),
   form: document.querySelector('#astro-form'),
-  tabs: document.querySelectorAll('.tab'),
+  tabs: document.querySelectorAll('.mode-tab'),
   run: document.querySelector('#run-button'),
   now: document.querySelector('#now-button'),
   auto: document.querySelector('#auto-button'),
@@ -59,6 +71,7 @@ const els = {
   dominantSummary: document.querySelector('#dominant-summary'),
   aspectSummary: document.querySelector('#aspect-summary'),
   wheel: document.querySelector('#wheel'),
+  tooltip: document.querySelector('#wheel-tooltip'),
   interpretation: document.querySelector('#interpretation'),
   positionsBody: document.querySelector('#positions-body'),
   aspects: document.querySelector('#aspects'),
@@ -67,6 +80,7 @@ const els = {
 };
 
 function init() {
+  startStarfield();
   renderBodyCheckboxes();
   setDateTimeToNow();
   setNatalDefault();
@@ -78,9 +92,10 @@ function init() {
 
 function renderBodyCheckboxes() {
   els.bodyList.innerHTML = bodies.map(([value, label]) => `
-    <label>
+    <label class="body-pill">
       <input type="checkbox" name="bodies" value="${value}" checked />
-      <span>${glyphs[value] || ''} ${label}</span>
+      <span class="glyph">${glyphs[value] || ''}</span>
+      <span>${label}</span>
     </label>
   `).join('');
 }
@@ -126,27 +141,32 @@ async function loadMetadata() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     state.apiAvailable = true;
-    els.statusDot.classList.add('is-ok');
-    els.apiStatus.textContent = 'API active';
-    els.apiDetails.textContent = `${data.engine || 'backend'} | ${data.supported_bodies?.length || 0} corps supportés`;
+    els.statusDot.dataset.state = 'live';
+    els.apiStatus.textContent = 'Éphéméride connectée';
+    els.apiDetails.textContent = `${data.engine || 'backend'} · ${data.supported_bodies?.length || 0} corps`;
     els.runtimeMode.textContent = 'API FastAPI';
   } catch (error) {
-    setStandaloneStatus(`API indisponible : ${error.message}`);
+    setStandaloneStatus(`API injoignable · ${error.message}`);
   }
 }
 
-function setStandaloneStatus(detail = 'Calcul autonome côté navigateur') {
-  els.statusDot.classList.add('is-ok');
-  els.apiStatus.textContent = 'Mode autonome actif';
+function setStandaloneStatus(detail = 'Calcul céleste dans le navigateur') {
+  els.statusDot.dataset.state = 'standalone';
+  els.apiStatus.textContent = 'Mode autonome';
   els.apiDetails.textContent = detail;
-  els.runtimeMode.textContent = 'GitHub Pages autonome';
+  els.runtimeMode.textContent = 'GitHub Pages';
 }
 
 function setMode(mode) {
   state.mode = mode;
-  els.tabs.forEach((tab) => tab.classList.toggle('is-active', tab.dataset.mode === mode));
+  els.tabs.forEach((tab) => {
+    const active = tab.dataset.mode === mode;
+    tab.classList.toggle('is-active', active);
+    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
   els.transitOnly.forEach((node) => node.classList.toggle('hidden', mode !== 'transit'));
   if (mode !== 'realtime') stopAutoRefresh();
+  runCalculation();
 }
 
 function setDateTimeToNow() {
@@ -241,6 +261,10 @@ async function runApiCalculation(payload) {
   if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
   return data;
 }
+
+/* ---------------------------------------------------------------------------
+   Moteur autonome (inchangé)
+   --------------------------------------------------------------------------- */
 
 function runStandaloneCalculation(payload) {
   if (payload.mode === 'transit') {
@@ -394,12 +418,6 @@ function computeTransitAspects(transitBodies, natalBodies) {
 }
 
 function buildSummary(items) {
-  const elementBySign = {
-    Aries: 'feu', Leo: 'feu', Sagittarius: 'feu',
-    Taurus: 'terre', Virgo: 'terre', Capricorn: 'terre',
-    Gemini: 'air', Libra: 'air', Aquarius: 'air',
-    Cancer: 'eau', Scorpio: 'eau', Pisces: 'eau',
-  };
   const elements = {};
   const signs = {};
   const houses = {};
@@ -472,10 +490,18 @@ function standaloneNotes(transitMode) {
   return notes;
 }
 
+/* ---------------------------------------------------------------------------
+   Rendu
+   --------------------------------------------------------------------------- */
+
 function renderResult(data) {
   const chart = data.transit ? data.transit : data;
-  els.lastUpdate.textContent = new Date(chart.meta.datetime_utc).toLocaleString('fr-BE');
-  els.ascSummary.textContent = chart.angles?.asc ? `${signLabels[chart.angles.asc.sign] || chart.angles.asc.sign} ${formatDeg(chart.angles.asc.sign_degree)}` : 'Non calculé';
+  els.lastUpdate.textContent = new Date(chart.meta.datetime_utc).toLocaleString('fr-BE', {
+    dateStyle: 'medium', timeStyle: 'short',
+  });
+  els.ascSummary.textContent = chart.angles?.asc
+    ? `${glyphs[chart.angles.asc.sign] || ''} ${signLabels[chart.angles.asc.sign] || chart.angles.asc.sign} ${formatDeg(chart.angles.asc.sign_degree)}`
+    : 'Non calculé';
   els.dominantSummary.textContent = buildDominantText(chart.summary || {});
   els.aspectSummary.textContent = `${chart.aspects?.length || data.transit_to_natal_aspects?.length || 0}`;
 
@@ -488,35 +514,35 @@ function renderResult(data) {
 }
 
 function renderError(error) {
-  els.interpretation.className = 'interpretation empty';
-  els.interpretation.textContent = `Erreur : ${error.message}`;
+  els.interpretation.className = 'interpretation is-empty';
+  els.interpretation.textContent = `Le calcul n’a pas abouti : ${error.message}. Vérifiez la date, le lieu et l’URL API éventuelle.`;
 }
 
 function buildDominantText(summary) {
   const parts = [];
-  if (summary.dominant_element) parts.push(`élément ${summary.dominant_element}`);
+  if (summary.dominant_element) parts.push(`${summary.dominant_element}`);
   if (summary.dominant_sign) parts.push(signLabels[summary.dominant_sign] || summary.dominant_sign);
   if (summary.dominant_house) parts.push(`maison ${summary.dominant_house}`);
-  return parts.join(' | ') || 'Aucune';
+  return parts.join(' · ') || 'Aucune';
 }
 
 function renderPositions(items) {
   els.positionsBody.innerHTML = items.map((body) => `
     <tr>
-      <td><strong>${glyphs[body.name] || ''} ${labelBody(body.name)}</strong></td>
-      <td>${glyphs[body.sign] || ''} ${signLabels[body.sign] || body.sign}</td>
-      <td>${formatDeg(body.sign_degree)}</td>
-      <td>${body.house}</td>
-      <td>${formatDeg(body.longitude)}</td>
-      <td>${body.speed}${body.retrograde ? ' R' : ''}</td>
+      <td><span class="cell-body"><span class="glyph glyph--gold">${glyphs[body.name] || ''}</span>${labelBody(body.name)}</span></td>
+      <td><span class="cell-sign"><span class="glyph">${glyphs[body.sign] || ''}</span>${signLabels[body.sign] || body.sign}</span></td>
+      <td class="num">${formatDeg(body.sign_degree)}</td>
+      <td class="num">${body.house}</td>
+      <td class="num">${formatDeg(body.longitude)}</td>
+      <td class="num">${body.speed}${body.retrograde ? ' ℞' : ''}</td>
     </tr>
   `).join('');
 }
 
 function renderAspects(items) {
   if (!items.length) {
-    els.aspects.className = 'aspect-list empty';
-    els.aspects.textContent = 'Aucun aspect affiché.';
+    els.aspects.className = 'aspect-list is-empty';
+    els.aspects.textContent = 'Aucun aspect majeur dans les orbes retenus.';
     return;
   }
   els.aspects.className = 'aspect-list';
@@ -524,9 +550,12 @@ function renderAspects(items) {
     const left = aspect.transit_body ? `Transit ${labelBody(aspect.transit_body)}` : labelBody(aspect.a);
     const right = aspect.natal_body ? `${labelBody(aspect.natal_body)} natal` : labelBody(aspect.b);
     return `
-      <article class="aspect-card">
-        <strong>${left} / ${right}</strong>
-        <small>${labelAspect(aspect.type)} | orbe ${Number(aspect.orb).toFixed(2)}° | ${aspect.nature || 'aspect'}</small>
+      <article class="aspect-card" data-nature="${aspectNatureClass(aspect.type)}">
+        <span class="aspect-glyph">${aspectGlyph(aspect.type)}</span>
+        <div>
+          <strong>${left} · ${right}</strong>
+          <small>${labelAspect(aspect.type)} · orbe ${Number(aspect.orb).toFixed(2)}°</small>
+        </div>
       </article>
     `;
   }).join('');
@@ -534,15 +563,18 @@ function renderAspects(items) {
 
 function renderInterpretation(items) {
   if (!items.length) {
-    els.interpretation.className = 'interpretation empty';
+    els.interpretation.className = 'interpretation is-empty';
     els.interpretation.textContent = 'Aucune lecture disponible.';
     return;
   }
   els.interpretation.className = 'interpretation';
   els.interpretation.innerHTML = items.slice(0, 10).map((item) => `
     <article class="interpretation-card">
-      <strong>${item.title}</strong>
-      <small>${item.kind} | poids ${item.weight}</small>
+      <header>
+        <strong>${item.title}</strong>
+        <span class="tag tag--${item.kind}">${item.kind}</span>
+      </header>
+      <div class="weight-bar" style="--w:${Math.round((item.weight || 0) * 100)}%"></div>
       <p>${item.text}</p>
     </article>
   `).join('');
@@ -552,101 +584,217 @@ function renderMethod(notes) {
   els.methodNotes.innerHTML = notes.map((note) => `<li>${note}</li>`).join('');
 }
 
+/* ---------------------------------------------------------------------------
+   La roue — pièce maîtresse
+   --------------------------------------------------------------------------- */
+
 function renderWheel(chart, transitAspects) {
-  const size = 560;
+  const size = 600;
   const cx = size / 2;
   const cy = size / 2;
-  const rOuter = 245;
-  const rInner = 180;
-  const rBodies = 202;
+  const rZodiacOut = 280;
+  const rZodiacIn = 232;
+  const rHouseRing = 232;
+  const rBodies = 198;
+  const rAspectHub = 150;
 
-  const lines = [];
-  for (let i = 0; i < 12; i += 1) {
-    const angle = degToRad(i * 30 - 90);
-    const x1 = cx + Math.cos(angle) * rInner;
-    const y1 = cy + Math.sin(angle) * rInner;
-    const x2 = cx + Math.cos(angle) * rOuter;
-    const y2 = cy + Math.sin(angle) * rOuter;
-    lines.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="wheel-line" />`);
+  // Secteurs alternés des 12 signes
+  const sectors = signOrder.map((sign, index) => {
+    const a0 = degToRad(index * 30 - 90);
+    const a1 = degToRad((index + 1) * 30 - 90);
+    const p0 = polar(cx, cy, rZodiacOut, a0);
+    const p1 = polar(cx, cy, rZodiacOut, a1);
+    const p2 = polar(cx, cy, rZodiacIn, a1);
+    const p3 = polar(cx, cy, rZodiacIn, a0);
+    const fill = index % 2 === 0 ? 'sector-a' : 'sector-b';
+    const element = elementBySign[sign];
+    return `<path class="sector ${fill}" data-el="${element}" d="M${p0.x} ${p0.y} A${rZodiacOut} ${rZodiacOut} 0 0 1 ${p1.x} ${p1.y} L${p2.x} ${p2.y} A${rZodiacIn} ${rZodiacIn} 0 0 0 ${p3.x} ${p3.y} Z" />`;
+  }).join('');
+
+  // Glyphes des signes gravés au rim
+  const signGlyphs = signOrder.map((sign, index) => {
+    const angle = degToRad(index * 30 + 15 - 90);
+    const p = polar(cx, cy, (rZodiacOut + rZodiacIn) / 2, angle);
+    return `<text x="${p.x}" y="${p.y}" class="wheel-sign" data-el="${elementBySign[sign]}" text-anchor="middle" dominant-baseline="central">${glyphs[sign]}</text>`;
+  }).join('');
+
+  // Graduations de degrés (toutes les 5°, plus longues tous les 30°)
+  const ticks = [];
+  for (let d = 0; d < 360; d += 5) {
+    const angle = degToRad(d - 90);
+    const major = d % 30 === 0;
+    const len = major ? 12 : 6;
+    const p1 = polar(cx, cy, rZodiacIn, angle);
+    const p2 = polar(cx, cy, rZodiacIn - len, angle);
+    ticks.push(`<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" class="tick ${major ? 'tick--major' : ''}" />`);
   }
 
-  const signs = signOrder.map((sign, index) => {
-    const angle = degToRad(index * 30 + 15 - 90);
-    const x = cx + Math.cos(angle) * 224;
-    const y = cy + Math.sin(angle) * 224;
-    return `<text x="${x}" y="${y}" class="wheel-sign" text-anchor="middle" dominant-baseline="middle">${glyphs[sign]}</text>`;
-  }).join('');
-
+  // Cuspides de maisons
   const houseLines = (chart.houses || []).map((house) => {
     const angle = degToRad(house.longitude - 90);
-    const x1 = cx + Math.cos(angle) * 70;
-    const y1 = cy + Math.sin(angle) * 70;
-    const x2 = cx + Math.cos(angle) * rOuter;
-    const y2 = cy + Math.sin(angle) * rOuter;
-    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="house-line" />`;
+    const p1 = polar(cx, cy, rAspectHub, angle);
+    const p2 = polar(cx, cy, rHouseRing, angle);
+    const pl = polar(cx, cy, rAspectHub + 16, angle);
+    return `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" class="house-line" />
+            <text x="${pl.x}" y="${pl.y}" class="house-num" text-anchor="middle" dominant-baseline="central">${house.house}</text>`;
   }).join('');
 
-  const aspectLines = (chart.aspects || []).slice(0, 22).map((aspect) => {
+  // Toile d'aspects
+  const aspectLines = (chart.aspects || []).slice(0, 26).map((aspect, i) => {
     const a = (chart.bodies || []).find((body) => body.name === aspect.a);
     const b = (chart.bodies || []).find((body) => body.name === aspect.b);
     if (!a || !b) return '';
-    const pa = pointForLongitude(a.longitude, cx, cy, 132);
-    const pb = pointForLongitude(b.longitude, cx, cy, 132);
-    return `<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" class="aspect-line ${aspect.type}" />`;
+    const pa = pointForLongitude(a.longitude, cx, cy, rAspectHub);
+    const pb = pointForLongitude(b.longitude, cx, cy, rAspectHub);
+    return `<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" class="aspect-line aspect-line--${aspect.type}" style="--d:${i * 28}ms" />`;
   }).join('');
 
+  // Nœuds planétaires avec décalage anti-collision
+  const placed = [];
   const bodyMarks = (chart.bodies || []).map((body, index) => {
-    const p = pointForLongitude(body.longitude, cx, cy, rBodies - (index % 3) * 13);
+    let radius = rBodies;
+    // léger retrait si un corps est trop proche en longitude d'un précédent
+    while (placed.some((pl) => Math.abs(radius - pl.r) < 1 && angularDistance(body.longitude, pl.lon) < 9)) {
+      radius -= 26;
+    }
+    placed.push({ r: radius, lon: body.longitude });
+    const p = pointForLongitude(body.longitude, cx, cy, radius);
+    const spoke1 = pointForLongitude(body.longitude, cx, cy, rZodiacIn - 14);
     const label = glyphs[body.name] || body.name.slice(0, 2).toUpperCase();
+    const tip = `${labelBody(body.name)} · ${signLabels[body.sign]} ${formatDeg(body.sign_degree)} · maison ${body.house}`;
     return `
-      <g>
-        <circle cx="${p.x}" cy="${p.y}" r="13" class="body-dot" />
-        <text x="${p.x}" y="${p.y + 1}" text-anchor="middle" dominant-baseline="middle" class="body-label">${label}</text>
+      <g class="body-node" style="--d:${260 + index * 45}ms" data-tip="${tip}">
+        <line x1="${p.x}" y1="${p.y}" x2="${spoke1.x}" y2="${spoke1.y}" class="body-spoke" />
+        <circle cx="${p.x}" cy="${p.y}" r="16" class="body-halo" />
+        <circle cx="${p.x}" cy="${p.y}" r="12.5" class="body-dot" />
+        <text x="${p.x}" y="${p.y + 0.5}" text-anchor="middle" dominant-baseline="central" class="body-glyph">${label}</text>
       </g>
     `;
   }).join('');
 
-  const transitNote = transitAspects ? `<text x="${cx}" y="${cy + 38}" class="wheel-center-note" text-anchor="middle">${transitAspects.length} aspects transit/natal</text>` : '';
+  const dominant = chart.summary?.dominant_element || '—';
+  const centerTime = chart.meta?.datetime_utc
+    ? new Date(chart.meta.datetime_utc).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
+    : '';
+  const transitNote = transitAspects
+    ? `<text x="${cx}" y="${cy + 40}" class="center-note" text-anchor="middle">${transitAspects.length} aspects transit/natal</text>`
+    : '';
 
   els.wheel.innerHTML = `
-    <svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
-      <style>
-        .wheel-ring{fill:none;stroke:rgba(255,255,255,.32);stroke-width:1.2}
-        .wheel-line,.house-line{stroke:rgba(255,255,255,.16);stroke-width:1}
-        .house-line{stroke-dasharray:4 5}
-        .wheel-sign{fill:rgba(244,247,251,.78);font-size:26px}
-        .aspect-line{stroke:rgba(183,215,255,.36);stroke-width:1.1}
-        .aspect-line.square,.aspect-line.opposition{stroke:rgba(255,149,138,.48)}
-        .aspect-line.trine,.aspect-line.sextile{stroke:rgba(159,240,200,.42)}
-        .body-dot{fill:rgba(11,16,32,.86);stroke:rgba(183,215,255,.9);stroke-width:1.2}
-        .body-label{fill:#f4f7fb;font-size:17px;font-weight:700}
-        .wheel-center{fill:rgba(255,255,255,.06);stroke:rgba(255,255,255,.12)}
-        .wheel-center-text{fill:#f4f7fb;font-size:19px;font-weight:800}
-        .wheel-center-note{fill:rgba(174,184,206,.9);font-size:12px}
-      </style>
-      <circle cx="${cx}" cy="${cy}" r="${rOuter}" class="wheel-ring" />
-      <circle cx="${cx}" cy="${cy}" r="${rInner}" class="wheel-ring" />
-      <circle cx="${cx}" cy="${cy}" r="128" class="wheel-ring" />
-      ${lines.join('')}
+    <svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Roue astrologique">
+      <defs>
+        <radialGradient id="hub" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="rgba(232,184,100,0.16)" />
+          <stop offset="70%" stop-color="rgba(232,184,100,0.04)" />
+          <stop offset="100%" stop-color="rgba(232,184,100,0)" />
+        </radialGradient>
+        <filter id="soft"><feGaussianBlur stdDeviation="2.2" /></filter>
+      </defs>
+
+      <circle cx="${cx}" cy="${cy}" r="${rAspectHub + 30}" fill="url(#hub)" />
+      ${sectors}
+      <circle cx="${cx}" cy="${cy}" r="${rZodiacOut}" class="ring ring--brass" />
+      <circle cx="${cx}" cy="${cy}" r="${rZodiacIn}" class="ring ring--brass" />
+      <circle cx="${cx}" cy="${cy}" r="${rAspectHub}" class="ring ring--inner" />
+      ${ticks.join('')}
+      ${signGlyphs}
       ${houseLines}
-      ${signs}
-      ${aspectLines}
+      <g class="aspect-web">${aspectLines}</g>
       ${bodyMarks}
-      <circle cx="${cx}" cy="${cy}" r="62" class="wheel-center" />
-      <text x="${cx}" y="${cy - 3}" class="wheel-center-text" text-anchor="middle">Astro</text>
+
+      <circle cx="${cx}" cy="${cy}" r="58" class="center-disc" />
+      <text x="${cx}" y="${cy - 12}" class="center-time" text-anchor="middle">${centerTime}</text>
+      <text x="${cx}" y="${cy + 12}" class="center-dominant" text-anchor="middle">${dominant}</text>
       ${transitNote}
     </svg>
   `;
+
+  bindWheelTooltips();
 }
+
+function bindWheelTooltips() {
+  const nodes = els.wheel.querySelectorAll('.body-node');
+  const tip = els.tooltip;
+  const wrap = els.wheel;
+  nodes.forEach((node) => {
+    node.addEventListener('mouseenter', () => {
+      tip.textContent = node.dataset.tip || '';
+      tip.dataset.show = 'true';
+    });
+    node.addEventListener('mousemove', (e) => {
+      const rect = wrap.getBoundingClientRect();
+      tip.style.left = `${e.clientX - rect.left}px`;
+      tip.style.top = `${e.clientY - rect.top}px`;
+    });
+    node.addEventListener('mouseleave', () => {
+      tip.dataset.show = 'false';
+    });
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   Champ d'étoiles ambiant (discret, prefers-reduced-motion respecté)
+   --------------------------------------------------------------------------- */
+
+function startStarfield() {
+  const canvas = document.querySelector('#starfield');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let stars = [];
+  let w = 0;
+  let h = 0;
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = canvas.clientWidth;
+    h = canvas.clientHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const count = Math.min(220, Math.floor((w * h) / 7000));
+    stars = Array.from({ length: count }, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      r: Math.random() * 1.3 + 0.2,
+      base: Math.random() * 0.5 + 0.15,
+      phase: Math.random() * Math.PI * 2,
+      twinkle: Math.random() * 0.5 + 0.2,
+      gold: Math.random() < 0.12,
+    }));
+  }
+
+  function draw(t) {
+    ctx.clearRect(0, 0, w, h);
+    for (const s of stars) {
+      const a = reduce ? s.base : s.base + Math.sin(t / 1000 + s.phase) * s.twinkle * 0.5;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = s.gold
+        ? `rgba(232,184,100,${Math.max(0, a)})`
+        : `rgba(226,230,245,${Math.max(0, a)})`;
+      ctx.fill();
+    }
+    if (!reduce) requestAnimationFrame(draw);
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+  if (reduce) draw(0);
+  else requestAnimationFrame(draw);
+}
+
+/* ---------------------------------------------------------------------------
+   Utilitaires
+   --------------------------------------------------------------------------- */
 
 function pointForLongitude(longitude, cx, cy, radius) {
   const angle = degToRad(longitude - 90);
-  return {
-    x: cx + Math.cos(angle) * radius,
-    y: cy + Math.sin(angle) * radius,
-  };
+  return { x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius };
 }
-
+function polar(cx, cy, radius, angle) {
+  return { x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius };
+}
 function degToRad(value) { return value * Math.PI / 180; }
 function normalize(value) { return ((value % 360) + 360) % 360; }
 function signForLongitude(longitude) { return signOrder[Math.floor(normalize(longitude) / 30)]; }
@@ -660,7 +808,7 @@ function toggleAutoRefresh() {
   }
   if (state.mode !== 'realtime') setMode('realtime');
   els.auto.dataset.active = 'true';
-  els.auto.textContent = 'Auto refresh actif';
+  els.auto.textContent = 'Suivi actif';
   runCalculation();
   state.autoTimer = window.setInterval(() => {
     setDateTimeToNow();
@@ -672,12 +820,13 @@ function stopAutoRefresh() {
   if (state.autoTimer) window.clearInterval(state.autoTimer);
   state.autoTimer = null;
   els.auto.dataset.active = 'false';
-  els.auto.textContent = 'Auto refresh';
+  els.auto.textContent = 'Suivre le ciel';
 }
 
 function setBusy(active) {
   els.run.disabled = active;
-  els.run.textContent = active ? 'Calcul...' : 'Calculer';
+  els.run.dataset.busy = active ? 'true' : 'false';
+  els.run.textContent = active ? 'Calcul…' : 'Calculer le ciel';
 }
 
 function labelBody(value) {
@@ -689,6 +838,16 @@ function labelAspect(value) {
   return {
     conjunction: 'Conjonction', sextile: 'Sextile', square: 'Carré', trine: 'Trigone', opposition: 'Opposition',
   }[value] || value;
+}
+
+function aspectGlyph(type) {
+  return { conjunction: '☌', sextile: '⚹', square: '□', trine: '△', opposition: '☍' }[type] || '◦';
+}
+
+function aspectNatureClass(type) {
+  if (type === 'trine' || type === 'sextile') return 'harmonic';
+  if (type === 'square' || type === 'opposition') return 'tension';
+  return 'neutral';
 }
 
 function formatDeg(value) { return `${Number(value).toFixed(2)}°`; }
